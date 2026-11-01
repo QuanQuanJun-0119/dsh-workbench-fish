@@ -118,6 +118,12 @@ window.__ModuleLoader__.load({
     .wf-heatcell{width:14px;height:14px;border-radius:3px}
     .wf-heatlegend{display:flex;align-items:center;gap:4px;font-size:10px;color:#9aa3b2;margin-top:6px}
     .wf-heatlegend i{display:inline-block;width:10px;height:10px;border-radius:2px}
+    .wf-msg{display:flex;gap:8px;padding:6px 0;border-bottom:1px dashed #eef1f6;font-size:11px;line-height:1.6}
+    .wf-msg:last-child{border-bottom:0}
+    .wf-msgrole{flex:0 0 30px;color:#9aa3b2}
+    .wf-msg.user .wf-msgrole{color:#2f6fed}
+    .wf-msg.assistant .wf-msgrole{color:#12a594}
+    .wf-msgtext{flex:1;color:#5b6473;white-space:pre-wrap;word-break:break-word}
     .wf-in{width:100%;box-sizing:border-box;margin-top:6px;padding:6px 8px;border:1px solid #dfe5ee;border-radius:8px;font:inherit;font-size:12px;outline:none}
     .wf-in:focus{border-color:#12a594}
     .wf-evo-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:2px 0 12px}
@@ -177,6 +183,7 @@ window.__ModuleLoader__.load({
       const [adding, setAdding] = useState(false);
       const [draft, setDraft] = useState({ title: '', summary: '' });
       const [sessInput, setSessInput] = useState('');
+      const [conv, setConv] = useState({ id: '', loading: false, messages: [], err: '' });
       const [filter, setFilter] = useState(null);
       const [sideW, setSideW] = useState(0);
       const [err, setErr] = useState('');
@@ -297,6 +304,28 @@ window.__ModuleLoader__.load({
           h('span', { className: 'wf-pill', style: { background: (COLOR[t.status] || '#9aa3b2') + '22', color: COLOR[t.status] } }, LABEL[t.status] || t.status),
           h('span', null, `${fmtTok(t.tokens)} · ${LABEL[t.status] || ''}`))));
 
+      // 选中任务后，把它挂的会话内容拉过来显示
+      useEffect(() => {
+        const selTask = state.tasks.find((x) => x.id === sel);
+        const sid = selTask && selTask.sessions && selTask.sessions[0];
+        if (!sid) { setConv({ id: '', loading: false, messages: [], err: '' }); return; }
+        if (conv.id === sid && (conv.messages.length || conv.loading)) return;
+        let alive = true;
+        setConv({ id: sid, loading: true, messages: [], err: '' });
+        (async () => {
+          try {
+            const r = await fetch('/workbench-fish/session?id=' + encodeURIComponent(sid) + '&limit=60', { credentials: 'include' });
+            const j = await r.json();
+            if (!alive) return;
+            if (!j.ok) setConv({ id: sid, loading: false, messages: [], err: j.error || '读不到' });
+            else setConv({ id: sid, loading: false, messages: j.messages || [], err: '' });
+          } catch (e) {
+            if (alive) setConv({ id: sid, loading: false, messages: [], err: String((e && e.message) || e) });
+          }
+        })();
+        return () => { alive = false; };
+      }, [sel, state.tasks]);
+
       const saveNew = async () => {
         if (!draft.title.trim()) { setErr('任务名不能空着'); return; }
         try {
@@ -351,9 +380,18 @@ window.__ModuleLoader__.load({
             h('div', { className: 'wf-sec' }, '摘要'),
             h('div', { className: 'wf-txt' }, selected.summary || '（没写）'),
             h('div', { className: 'wf-sec' }, '关联会话'),
-            h('div', { className: 'wf-conv' }, (selected.sessions && selected.sessions.length)
-              ? selected.sessions.join('\n')
-              : '还没挂会话（挂上才会算花费）'),
+            h('div', { className: 'wf-conv' },
+              (selected.sessions && selected.sessions.length)
+                ? (conv.loading
+                    ? '读取中…'
+                    : conv.err
+                      ? ('读不到对话：' + conv.err)
+                      : (conv.messages.length
+                          ? conv.messages.map((m, k) => h('div', { key: k, className: 'wf-msg ' + m.role },
+                              h('span', { className: 'wf-msgrole' }, m.role === 'user' ? '主人' : '鱼鱼'),
+                              h('span', { className: 'wf-msgtext' }, m.text.length > 300 ? m.text.slice(0, 300) + '…' : m.text)))
+                          : '这个会话还没说过话'))
+                : '还没挂会话（挂上才会算花费）'),
             h('div', { style: { display: 'flex', gap: 8, marginTop: 6 } },
               h('input', {
                 className: 'wf-in',
