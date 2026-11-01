@@ -1,0 +1,5 @@
+# dsh-workbench-fish bundle patch layer
+# 装进 profile 的 dsh.profile.bundles 后整层生效
+- insert:
+    - id: workbench-fish
+      name: 'dsh-workbench-fish'
