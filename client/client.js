@@ -120,6 +120,28 @@ window.__ModuleLoader__.load({
     .wf-heatlegend i{display:inline-block;width:10px;height:10px;border-radius:2px}
     .wf-in{width:100%;box-sizing:border-box;margin-top:6px;padding:6px 8px;border:1px solid #dfe5ee;border-radius:8px;font:inherit;font-size:12px;outline:none}
     .wf-in:focus{border-color:#12a594}
+    .wf-evo-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:2px 0 12px}
+    .wf-evo-stat{background:#fff;border:1px solid #e3e8f0;border-radius:12px;padding:11px 13px;min-width:0}
+    .wf-evo-stat b{display:block;font-size:19px;font-weight:700;line-height:1.15;font-variant-numeric:tabular-nums}
+    .wf-evo-stat span{display:block;font-size:11px;color:#5b6473;margin-top:3px}
+    .wf-evo-stat i{display:block;font-size:10px;color:#9aa3b2;margin-top:4px;font-style:normal;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .wf-panel{background:#fff;border:1px solid #e3e8f0;border-radius:14px;padding:14px 16px;min-width:0}
+    .wf-panel-h{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:6px}
+    .wf-panel-t{font-size:13px;font-weight:700}
+    .wf-panel-m{font-size:11px;color:#9aa3b2;font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+    .wf-evo-2col{display:grid;grid-template-columns:1.35fr 1fr;gap:12px;margin-top:12px;align-items:start}
+    .wf-tl-row{display:flex;gap:9px;align-items:flex-start;padding:6px 0;border-bottom:1px solid #f2f5f9}
+    .wf-tl-row:last-child{border-bottom:0}
+    .wf-tl-dot{width:7px;height:7px;border-radius:50%;margin-top:5px;flex:0 0 7px}
+    .wf-tl-date{width:36px;flex:0 0 36px;font-size:10px;color:#9aa3b2;font-variant-numeric:tabular-nums;padding-top:2px}
+    .wf-tl-main{flex:1;min-width:0}
+    .wf-tl-t{font-size:12px;color:#1f2937;line-height:1.45;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .wf-tl-s{font-size:10px;color:#9aa3b2;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .wf-kind{display:inline-block;font-size:9px;line-height:1.5;padding:0 6px;border-radius:8px;margin-right:6px;font-weight:600}
+    .wf-diffline{font-size:11px;line-height:1.55;padding:1px 6px;border-radius:5px;margin-top:4px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .wf-evo-foot{font-size:10px;color:#9aa3b2;margin-top:14px;line-height:1.8}
+    .wf-evo-foot b{color:#5b6473;font-weight:600;font-variant-numeric:tabular-nums}
+    @media (max-width:780px){.wf-evo-stats{grid-template-columns:repeat(2,1fr)}.wf-evo-2col{grid-template-columns:1fr}}
     `;
 
     const COLOR = { running: '#2f6fed', waiting: '#e5a53c', stuck: '#e05252', done: '#2f9e6e', paused: '#9aa3b2' };
@@ -391,41 +413,138 @@ window.__ModuleLoader__.load({
               h('span', { className: 'wf-cost', style: { width: 58, textAlign: 'right' } }, `¥${(x.cost || 0).toFixed(2)}`),
               h('span', { style: { width: 64, textAlign: 'right', color: '#9aa3b2' } }, fmtTok(x.tokens)))))
           : h('div', { className: 'wf-empty' }, '还没有花钱的记录'));
-      const evoCards = [
+      const evoCard = (title, meta, body) => h('div', { className: 'wf-panel' },
+        h('div', { className: 'wf-panel-h' },
+          h('div', { className: 'wf-panel-t' }, title),
+          meta ? h('div', { className: 'wf-panel-m' }, meta) : null),
+        body);
+
+      const week = evo.week || {};
+      const persona = evo.persona || null;
+      const totals = evo.totals || {};
+      const mem = evo.memory || {};
+      const changes = evo.changes || [];
+      const skillList = (Array.isArray(evo.skills) ? evo.skills : []).map((s) => (typeof s === 'string' ? { name: s } : s));
+
+      const statChips = [
         {
-          title: '鲸鱼的进化',
-          color: '#2f6fed',
-          lines: [
-            `人格卡：${evo.persona ? evo.persona.bytes + ' 字节' : '没找到'}`,
-            `常驻记忆：${evo.memoryBytes || 0} 字节`,
-          ],
-        },
-        {
-          title: '已加载的 skill',
-          color: '#7c5cff',
-          lines: (evo.skills && evo.skills.length) ? evo.skills.map((n) => '· ' + n) : ['没读到'],
-        },
-        {
-          title: '当前人格卡',
+          n: week.memoryCount ? `+${week.memoryCount}` : '0',
           color: '#12a594',
-          lines: (evo.cards && evo.cards.length)
-            ? evo.cards.map((c) => `· ${c.name}　${c.bytes} 字节`)
-            : ['（没读到卡文件）'],
+          label: '条新记忆',
+          sub: week.memoryBytes ? `写了 ${kbFmt(week.memoryBytes)}` : '这周还没记',
         },
         {
-          title: '主人进化',
+          n: String(week.skillsTouched || 0),
+          color: '#7c5cff',
+          label: '个 skill 动过',
+          sub: `一共 ${totals.skills || 0} 个（自建 ${totals.userSkills || 0}）`,
+        },
+        {
+          n: String(week.tasksCreated || 0),
+          color: '#2f9e6e',
+          label: '个新任务',
+          sub: '这周开的',
+        },
+        {
+          n: persona && persona.deltaBytes != null
+            ? `${persona.deltaBytes >= 0 ? '+' : '−'}${Math.abs(persona.deltaBytes)}`
+            : (persona ? `${persona.bytes}` : '—'),
           color: '#e5a53c',
-          lines: ['这块 v1 先留位置', '以后记你学会的新规矩'],
+          label: persona && persona.deltaBytes != null ? '字节人格卡' : '字节人格卡',
+          sub: persona ? (persona.deltaBytes != null ? '相比上一版' : `上次改 ${relDay(persona.changedAt)}`) : '没读到',
         },
       ];
+
+      const timeline = changes.length
+        ? h('div', null, changes.slice(0, 14).map((c, i) => {
+            const k = KIND[c.kind] || { l: c.kind, c: '#9aa3b2' };
+            return h('div', { key: i, className: 'wf-tl-row', title: `${c.date} ${c.title} — ${c.detail || ''}` },
+              h('span', { className: 'wf-tl-dot', style: { background: k.c } }),
+              h('span', { className: 'wf-tl-date' }, dayLabel(c.date)),
+              h('div', { className: 'wf-tl-main' },
+                h('div', { className: 'wf-tl-t' },
+                  h('span', { className: 'wf-kind', style: { background: k.c + '1a', color: k.c } }, k.l),
+                  c.title),
+                c.detail ? h('div', { className: 'wf-tl-s' }, c.detail) : null));
+          }))
+        : h('div', { className: 'wf-empty' }, '还没有可显示的变化');
+
+      const personaBody = persona
+        ? h('div', null,
+            h('div', { style: { fontSize: 12, color: '#5b6473', lineHeight: 1.7 } },
+              h('b', { style: { color: '#1f2937', fontVariantNumeric: 'tabular-nums' } }, `${persona.bytes} 字节`),
+              ` · ${persona.lines} 行 · ${(persona.sections || []).length} 个小节`),
+            h('div', { style: { fontSize: 11, color: '#9aa3b2', marginTop: 2 } },
+              `上次改动 ${relDay(persona.changedAt)}${persona.versionCount ? `　共记过 ${persona.versionCount} 版` : ''}`),
+            persona.diff
+              ? h('div', { style: { marginTop: 8 } },
+                  h('div', { style: { fontSize: 11, color: '#5b6473' } },
+                    `比上一版　`,
+                    h('span', { style: { color: '#2f9e6e', fontWeight: 700 } }, `+${persona.diff.added}`),
+                    ' / ',
+                    h('span', { style: { color: '#e05252', fontWeight: 700 } }, `−${persona.diff.removed}`),
+                    ' 行'),
+                  (persona.diff.addedLines || []).map((ln, i) => h('span', {
+                    key: 'a' + i, className: 'wf-diffline', style: { color: '#2f9e6e', background: '#2f9e6e12' },
+                  }, '＋ ' + ln)),
+                  (persona.diff.removedLines || []).map((ln, i) => h('span', {
+                    key: 'r' + i, className: 'wf-diffline', style: { color: '#e05252', background: '#e0525212', textDecoration: 'line-through' },
+                  }, '－ ' + ln)))
+              : h('div', { style: { fontSize: 11, color: '#9aa3b2', marginTop: 8, lineHeight: 1.6 } },
+                  '还没有上一版可比 —— 从这回起，每次改都会留一版，下次就能看见改了哪句。'),
+            (persona.sections && persona.sections.length)
+              ? h('div', { style: { marginTop: 10, display: 'flex', flexWrap: 'wrap', gap: 5 } },
+                  persona.sections.map((s2, i) => h('span', {
+                    key: i, style: {
+                      fontSize: 10, color: '#5b6473', background: '#f2f5f9', borderRadius: 8,
+                      padding: '2px 7px', whiteSpace: 'nowrap',
+                    },
+                  }, `${s2.title} · ${kbFmt(s2.bytes)}`)))
+              : null)
+        : h('div', { className: 'wf-empty' }, '没读到人格卡');
+
+      const skillBody = skillList.length
+        ? h('div', null, skillList.slice(0, 5).map((sk, i) => h('div', {
+            key: i, style: { display: 'flex', alignItems: 'baseline', gap: 8, padding: '4px 0', fontSize: 12 },
+          },
+            h('span', { style: { flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#1f2937' } }, sk.name),
+            h('span', { style: { fontSize: 10, color: '#9aa3b2', whiteSpace: 'nowrap' } }, sk.source || ''),
+            h('span', { style: { fontSize: 10, color: '#9aa3b2', fontVariantNumeric: 'tabular-nums', width: 34, textAlign: 'right' } }, dayLabel(sk.date || String(sk.at || '').slice(0, 10))))))
+        : h('div', { className: 'wf-empty' }, '没读到 skill');
+
       const evolveView = h('div', null,
         h('div', { className: 'wf-h' }, '进化'),
-        h('div', { className: 'wf-txt', style: { marginBottom: 4 } }, '鲸鱼长了什么、你长了什么'),
-        h('div', { className: 'wf-evo-grid' }, evoCards.map((c) => h('div', { key: c.title, className: 'wf-b wf-evo-card' },
-          h('div', { style: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 } },
-            h('i', { style: { width: 8, height: 8, borderRadius: '50%', background: c.color, display: 'inline-block' } }),
-            h('span', { style: { fontSize: 14, fontWeight: 700 } }, c.title)),
-          c.lines.map((ln, k) => h('div', { key: k, style: { fontSize: 12, color: '#5b6473', lineHeight: 1.7 } }, ln))))));
+        h('div', { className: 'wf-txt', style: { marginBottom: 10 } }, '不看现在多大，看这阵子长了什么'),
+        evo.error ? h('div', { className: 'wf-empty', style: { color: '#e05252' } }, '进化数据读失败了：' + evo.error) : null,
+        !evo.curve || !evo.week
+          ? h('div', { className: 'wf-empty', style: { lineHeight: 1.9 } },
+              '宿主插件还是旧版，读不到曲线和变化流水。',
+              h('br'),
+              '重启一次 DSH（桌面那个「重启DSH.bat」）就有了。')
+          : h('div', null,
+              h('div', { className: 'wf-evo-stats' }, statChips.map((c, i) => h('div', { key: i, className: 'wf-evo-stat' },
+                h('b', { style: { color: c.color } }, c.n),
+                h('span', null, c.label),
+                h('i', null, c.sub)))),
+              evoCard('记忆成长', (() => {
+                const first = (evo.curve || []).find((p) => p.count > 0);
+                return first ? `${dayLabel(first.date)} 起 · 累计 ${kbFmt(mem.totalBytes)}` : '还没有曲线';
+              })(), memoryChart(evo.curve)),
+              h('div', { className: 'wf-evo-2col' },
+                evoCard('最近的变化', `近 ${(evo.curve || []).length} 天 · ${changes.length} 条`, timeline),
+                h('div', { style: { display: 'grid', gap: 12 } },
+                  evoCard('人格卡', persona ? persona.name : '', personaBody),
+                  evoCard('最近动过的 skill', '', skillBody))),
+              h('div', { className: 'wf-evo-foot' },
+                '现状：记忆 ',
+                h('b', null, `${mem.entries || 0} 条`),
+                ' / ',
+                h('b', null, kbFmt(mem.totalBytes || 0)),
+                ' · skill ',
+                h('b', null, String(totals.skills || 0)),
+                ' 个 · 插件 ',
+                h('b', null, String(totals.plugins || 0)),
+                ' 个。曲线和流水都是真日期攒出来的，不是编的。')));
 
 
       const tree = h('div', { className: 'wf-root', style: { left: sideW ? sideW : 0 } },
@@ -521,6 +640,106 @@ window.__ModuleLoader__.load({
       if (v >= 1e6) return (v / 1e6).toFixed(1) + 'M';
       if (v >= 1e3) return (v / 1e3).toFixed(0) + 'K';
       return String(v);
+    }
+
+    /* ---------------- 进化页：变化感的几个积木 ---------------- */
+
+    const KIND = {
+      memory: { l: '记忆', c: '#12a594' },
+      skill: { l: 'skill', c: '#7c5cff' },
+      plugin: { l: '插件', c: '#2f6fed' },
+      task: { l: '任务', c: '#2f9e6e' },
+      persona: { l: '人格卡', c: '#e5a53c' },
+    };
+
+    function kbFmt(n) {
+      const v = Number(n || 0);
+      return v >= 1024 ? (v / 1024).toFixed(1) + ' KB' : v + ' B';
+    }
+    function dayLabel(v) {
+      const s = String(v || '');
+      return s.length >= 10 ? s.slice(5) : s;
+    }
+    /** 哪天改的，说人话：今天 02:24 / 昨天 / 3 天前 */
+    function relDay(iso) {
+      if (!iso) return '—';
+      const d = new Date(iso);
+      if (Number.isNaN(d.getTime())) return String(iso).slice(0, 10);
+      const p = (n) => String(n).padStart(2, '0');
+      const now = new Date();
+      const dz = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+      const gap = Math.round((dz(now) - dz(d)) / 86400000);
+      const hm = `${p(d.getHours())}:${p(d.getMinutes())}`;
+      const md = `${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+      if (gap <= 0) return `今天 ${hm}`;
+      if (gap === 1) return `昨天 ${hm}`;
+      if (gap < 7) return `${gap} 天前`;
+      return md;
+    }
+    /** 把最大值抬到好看的刻度（KB 整数） */
+    function niceMax(v) {
+      if (!(v > 0)) return 1024;
+      const k = v / 1024;
+      const steps = [1, 2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 25, 30, 40, 50, 60, 80, 100, 150, 200, 300, 400, 500, 800];
+      for (const s of steps) if (k <= s) return s * 1024;
+      return Math.ceil(k / 100) * 100 * 1024;
+    }
+
+    /** 记忆体量累积折线（纯手写 SVG，不引依赖） */
+    function memoryChart(curve) {
+      if (!curve || curve.length < 2) {
+        return h('div', { className: 'wf-empty' }, '还没有按日期记下的记忆，攒两天就有曲线了');
+      }
+      const W = 640;
+      const H = 170;
+      const PL = 44;
+      const PR = 18;
+      const PT = 18;
+      const PB = 24;
+      const iw = W - PL - PR;
+      const ih = H - PT - PB;
+      const maxV = niceMax(Math.max(...curve.map((p) => p.bytes)));
+      const X = (i) => PL + (i / (curve.length - 1)) * iw;
+      const Y = (v) => PT + ih - (v / maxV) * ih;
+      const line = curve.map((p, i) => `${i ? 'L' : 'M'}${X(i).toFixed(1)} ${Y(p.bytes).toFixed(1)}`).join(' ');
+      const area = `${line} L${X(curve.length - 1).toFixed(1)} ${Y(0).toFixed(1)} L${X(0).toFixed(1)} ${Y(0).toFixed(1)} Z`;
+      const kids = [
+        h('defs', { key: 'g' },
+          h('linearGradient', { id: 'wf-evo-grad', x1: '0', y1: '0', x2: '0', y2: '1' },
+            h('stop', { offset: '0%', stopColor: '#12a594', stopOpacity: '0.26' }),
+            h('stop', { offset: '100%', stopColor: '#12a594', stopOpacity: '0.01' }))),
+      ];
+      // 横向刻度
+      for (const f of [0, 0.5, 1]) {
+        const v = maxV * f;
+        const y = Y(v);
+        kids.push(h('line', { key: 'gl' + f, x1: PL, y1: y, x2: W - PR, y2: y, stroke: '#eef1f6', strokeWidth: 1 }));
+        kids.push(h('text', { key: 'gt' + f, x: PL - 8, y: y + 3, textAnchor: 'end', fontSize: 9, fill: '#9aa3b2' }, kbFmt(v)));
+      }
+      kids.push(h('path', { key: 'a', d: area, fill: 'url(#wf-evo-grad)' }));
+      kids.push(h('path', { key: 'l', d: line, fill: 'none', stroke: '#12a594', strokeWidth: 2, strokeLinejoin: 'round', strokeLinecap: 'round' }));
+      // 有新增的日子打点
+      curve.forEach((p, i) => {
+        if (!p.newCount) return;
+        kids.push(h('circle', {
+          key: 'd' + p.date, cx: X(i), cy: Y(p.bytes), r: 3.2, fill: '#fff', stroke: '#12a594', strokeWidth: 1.6,
+        }, h('title', null, `${p.date}　+${p.newCount} 条 · +${kbFmt(p.newBytes)}\n累计 ${kbFmt(p.bytes)} / ${p.count} 条`)));
+      });
+      // 末端数值
+      const last = curve[curve.length - 1];
+      kids.push(h('circle', { key: 'last', cx: X(curve.length - 1), cy: Y(last.bytes), r: 4.2, fill: '#12a594' }));
+      kids.push(h('text', {
+        key: 'lastv', x: X(curve.length - 1) - 6, y: Y(last.bytes) - 9, textAnchor: 'end', fontSize: 10,
+        fontWeight: 700, fill: '#0f766e',
+      }, kbFmt(last.bytes)));
+      // 横轴日期
+      const idxs = Array.from(new Set([0, Math.round((curve.length - 1) / 2), curve.length - 1]));
+      idxs.forEach((i, k) => kids.push(h('text', {
+        key: 'x' + i, x: X(i), y: H - 6,
+        textAnchor: k === 0 ? 'start' : k === idxs.length - 1 ? 'end' : 'middle',
+        fontSize: 9, fill: '#9aa3b2',
+      }, dayLabel(curve[i].date))));
+      return h('svg', { viewBox: `0 0 ${W} ${H}`, width: '100%', style: { display: 'block', height: 'auto' } }, kids);
     }
 
     /* ---------------- 注册 ---------------- */
