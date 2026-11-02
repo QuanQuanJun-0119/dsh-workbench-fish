@@ -1,4 +1,4 @@
-# 鱼鱼的工作台 · dsh-workbench-fish
+﻿# 鱼鱼的工作台 · dsh-workbench-fish
 
 给 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 用的任务看板插件：**一屏看清今天交给我多少活、跑到哪了、花了多少钱**。
 
@@ -95,6 +95,13 @@ node ../im/tools/shot.mjs <token-url> out.png [overview|cost|evo|card|drag|newta
 - 移动端没做单栏降级，窄屏会挤
 - 没有测试
 
+## 依赖
+
+- **运行必需**：[`dsh-cost-meter`](https://www.npmjs.com/package/dsh-cost-meter) —— 花费数据从它的账本读。没装的话任务卡全是 ¥0.00。
+- **开发推荐**：[`dsh-super-injector`](https://github.com/r-ayin/dsh-super-injector) —— 改代码热重载，不用重启。不装也能用，只是改宿主得重启。
+- 宿主侧只用 `node:fs` / `node:zlib` / `node:crypto`，**没有第三方运行时依赖**。
+
 ## License
 
 MIT
+
