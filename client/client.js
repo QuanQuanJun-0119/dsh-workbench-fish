@@ -270,6 +270,28 @@ window.__ModuleLoader__.load({
         return () => { window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); };
       }, []);
 
+      // 选中任务后，把它挂的会话内容拉过来显示
+      useEffect(() => {
+        const selTask = state.tasks.find((x) => x.id === sel);
+        const sid = selTask && selTask.sessions && selTask.sessions[0];
+        if (!sid) { setConv({ id: '', loading: false, messages: [], err: '' }); return; }
+        if (conv.id === sid && (conv.messages.length || conv.loading)) return;
+        let alive = true;
+        setConv({ id: sid, loading: true, messages: [], err: '' });
+        (async () => {
+          try {
+            const r = await fetch('/workbench-fish/session?id=' + encodeURIComponent(sid) + '&limit=60', { credentials: 'include' });
+            const j = await r.json();
+            if (!alive) return;
+            if (!j.ok) setConv({ id: sid, loading: false, messages: [], err: j.error || '读不到' });
+            else setConv({ id: sid, loading: false, messages: j.messages || [], err: '' });
+          } catch (e) {
+            if (alive) setConv({ id: sid, loading: false, messages: [], err: String((e && e.message) || e) });
+          }
+        })();
+        return () => { alive = false; };
+      }, [sel, state.tasks]);
+
       if (!open) return null;
 
       const s = state.summary;
@@ -304,27 +326,6 @@ window.__ModuleLoader__.load({
           h('span', { className: 'wf-pill', style: { background: (COLOR[t.status] || '#9aa3b2') + '22', color: COLOR[t.status] } }, LABEL[t.status] || t.status),
           h('span', null, `${fmtTok(t.tokens)} · ${LABEL[t.status] || ''}`))));
 
-      // 选中任务后，把它挂的会话内容拉过来显示
-      useEffect(() => {
-        const selTask = state.tasks.find((x) => x.id === sel);
-        const sid = selTask && selTask.sessions && selTask.sessions[0];
-        if (!sid) { setConv({ id: '', loading: false, messages: [], err: '' }); return; }
-        if (conv.id === sid && (conv.messages.length || conv.loading)) return;
-        let alive = true;
-        setConv({ id: sid, loading: true, messages: [], err: '' });
-        (async () => {
-          try {
-            const r = await fetch('/workbench-fish/session?id=' + encodeURIComponent(sid) + '&limit=60', { credentials: 'include' });
-            const j = await r.json();
-            if (!alive) return;
-            if (!j.ok) setConv({ id: sid, loading: false, messages: [], err: j.error || '读不到' });
-            else setConv({ id: sid, loading: false, messages: j.messages || [], err: '' });
-          } catch (e) {
-            if (alive) setConv({ id: sid, loading: false, messages: [], err: String((e && e.message) || e) });
-          }
-        })();
-        return () => { alive = false; };
-      }, [sel, state.tasks]);
 
       const saveNew = async () => {
         if (!draft.title.trim()) { setErr('任务名不能空着'); return; }
